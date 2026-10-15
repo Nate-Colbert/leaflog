@@ -397,17 +397,39 @@ async function aiBlob(f) {
   return null;
 }
 
+const AI_STEPS = ['Looking at the leaves…', 'Working out the species…', 'Checking light and water needs…', 'Picking a soil mix and feeding plan…', 'Nearly done…'];
+/** show an animated "thinking" card in `out`; returns a function that stops the animation */
+function aiLoading(out, btn) {
+  let i = 0;
+  out.innerHTML = `<div class="ai-load" role="status" aria-live="polite"><div class="ai-orb"><span></span><span></span><span></span></div>
+    <div class="ai-step">${AI_STEPS[0]}</div><div class="ai-skel"><i></i><i></i><i></i></div></div>`;
+  const step = out.querySelector('.ai-step');
+  const t = setInterval(() => {
+    i = Math.min(i + 1, AI_STEPS.length - 1);
+    step.classList.add('swap');
+    setTimeout(() => { step.textContent = AI_STEPS[i]; step.classList.remove('swap'); }, 180);
+  }, 2200);
+  if (btn) { btn.disabled = true; btn.classList.add('busy'); btn.dataset.label = btn.innerHTML; btn.innerHTML = '<span class="spin"></span> Thinking…'; }
+  return () => {
+    clearInterval(t);
+    if (btn) { btn.disabled = false; btn.classList.remove('busy'); if (btn.dataset.label) btn.innerHTML = btn.dataset.label; }
+  };
+}
+
 async function aiIdentify(auto) {
-  const f = $('#pf'), out = $('#ai-out');
+  const f = $('#pf'), out = $('#ai-out'), btn = f && f.querySelector('[data-act=ai-identify]');
+  if (btn && btn.disabled) return; // already working
   const blob = await aiBlob(f);
   if (!blob) { showToast('Add a photo first, then tap Identify', 3000); return; }
-  out.innerHTML = '<p class="muted">✨ Claude is looking at your photo and filling in the details…</p>';
+  const stop = aiLoading(out, btn);
   try {
     const res = await callFn('plant-advisor', { mode: 'identify', image: await toBase64(blob), media_type: 'image/jpeg', hint: f.elements.name.value || '' });
+    stop();
     S.ai = res.result || res;
     out.innerHTML = renderAi(S.ai);
+    out.firstElementChild && out.firstElementChild.classList.add('ai-in');
     if (auto && $('#pf') === f) { aiApply(); showToast('✨ Filled in from your photo. Check it, then Save.', 4000); }
-  } catch (e) { out.innerHTML = ''; fail(e); }
+  } catch (e) { stop(); out.innerHTML = ''; fail(e); }
 }
 
 function aiApply() {
@@ -452,14 +474,15 @@ function openAskClaude(plantId) {
 async function submitAsk(f) {
   const fd = new FormData(f), p = S.plants.find((x) => x.id === f.dataset.plant), out = $('#ai-reply', f);
   const btn = $('button.primary', f); btn.disabled = true; btn.textContent = 'Thinking…';
-  out.innerHTML = '<p class="muted">✨ Claude is thinking…</p>';
+  const stop = aiLoading(out, null);
   try {
     let image = null;
     if (fd.get('photo') === 'on' && plantImg(p)) { try { image = await toBase64(await (await fetch(plantImg(p))).blob()); } catch (e) { /* ask without the photo */ } }
     const res = await callFn('plant-advisor', { mode: 'advice', plant: plantSummary(p), question: fd.get('q'), image, media_type: 'image/jpeg' });
     const text = (res.result && res.result.advice) || res.advice || '';
-    out.innerHTML = `<div class="ai-card"><div class="ai-text">${esc(text)}</div></div>`;
-  } catch (e) { out.innerHTML = ''; fail(e); }
+    stop();
+    out.innerHTML = `<div class="ai-card ai-in"><div class="ai-text">${esc(text)}</div></div>`;
+  } catch (e) { stop(); out.innerHTML = ''; fail(e); }
   btn.disabled = false; btn.textContent = 'Ask again';
 }
 
