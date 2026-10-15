@@ -6,7 +6,7 @@ window.PLANT_CONFIG = {
   SUPABASE_ANON_KEY: "sb_publishable_apeD3TriBD1SDO9YxKQAmg_8r-7fJ6d",
   
   // Turn these on ONLY after you've set up the matching Edge Function (see README):
-  AI_ENABLED: false,            // Claude plant ID, care guides and "Ask Claude"  (function: plant-advisor)
+  AI_ENABLED: true,            // Claude plant ID, care guides and "Ask Claude"  (function: plant-advisor)
   PUSH_ENABLED: false,          // morning push notification                       (function: daily-summary)
   VAPID_PUBLIC_KEY: ""          // from vapid.html (the PUBLIC key only)
 };
