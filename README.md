@@ -37,7 +37,7 @@ The hub already shows room temperature/humidity (and per-plant soil moisture in 
 3. Anything that can POST JSON can send readings (format is in the file's header comment). The next step for Govee is a small poller using your Govee developer API key; tell me which models you have (H5075, H5179, etc.) and I'll write it.
 
 ## Notes
-- Photos: the plant form now has separate **Take photo** (opens the camera) and **Choose photo** (gallery) buttons.
+- Photos: on a NEW plant, choosing or taking a photo automatically sends it to Claude and fills in name, species, watering, feeding, light, soil and pole settings (needs section 2 set up; check the fields, then Save). The plant form now has separate **Take photo** (opens the camera) and **Choose photo** (gallery) buttons.
 - Snapping only ever delays watering to the next water day (within each plant's flexibility: strict 0 / normal 2 / hardy 4 days). This slightly lengthens observed gaps, so log soil dampness when you water to keep the learning honest.
 - Weather uses free Open-Meteo; no key needed.
 - Push could not be tested end to end in my environment. If the test button errors, check the function's Logs tab and tell me the message.

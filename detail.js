@@ -397,15 +397,16 @@ async function aiBlob(f) {
   return null;
 }
 
-async function aiIdentify() {
+async function aiIdentify(auto) {
   const f = $('#pf'), out = $('#ai-out');
   const blob = await aiBlob(f);
   if (!blob) { showToast('Add a photo first, then tap Identify', 3000); return; }
-  out.innerHTML = '<p class="muted">✨ Claude is looking at your photo…</p>';
+  out.innerHTML = '<p class="muted">✨ Claude is looking at your photo and filling in the details…</p>';
   try {
     const res = await callFn('plant-advisor', { mode: 'identify', image: await toBase64(blob), media_type: 'image/jpeg', hint: f.elements.name.value || '' });
     S.ai = res.result || res;
     out.innerHTML = renderAi(S.ai);
+    if (auto && $('#pf') === f) { aiApply(); showToast('✨ Filled in from your photo. Check it, then Save.', 4000); }
   } catch (e) { out.innerHTML = ''; fail(e); }
 }
 
@@ -551,5 +552,7 @@ document.addEventListener('change', (e) => {
     let img = box.querySelector('.photo-prev');
     if (!img) { img = document.createElement('img'); img.className = 'photo-prev'; img.alt = ''; box.insertBefore(img, box.querySelector('.photo-btns')); }
     img.src = URL.createObjectURL(file);
+    const pf = box.closest('#pf');
+    if (cfg.AI_ENABLED && pf && !pf.dataset.id) aiIdentify(true); // new plant: auto-fill from the photo
   }
 });
