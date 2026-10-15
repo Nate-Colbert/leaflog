@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leaflog key maker</title>
+<style>body{font:16px system-ui;max-width:640px;margin:2rem auto;padding:0 1rem;color:#1f2a24}
+code,textarea{font:13px ui-monospace,monospace;width:100%;box-sizing:border-box;word-break:break-all}
+textarea{height:5rem;padding:.5rem}button{font:inherit;padding:.6rem 1.2rem;border-radius:10px;border:0;background:#2e7d5b;color:#fff;cursor:pointer}
+.warn{background:#fff4e0;padding:.8rem 1rem;border-radius:10px}</style></head>
+<body>
+<h1>🔑 Notification keys</h1>
+<p>This makes the key pair your morning notification needs. It runs entirely in your browser; nothing is uploaded.</p>
+<button id="go">Generate keys</button>
+<div id="out" hidden>
+<h3>Public key</h3><p>Goes in <code>config.js</code> as VAPID_PUBLIC_KEY <b>and</b> in Supabase secret VAPID_PUBLIC_KEY.</p><textarea id="pub" readonly></textarea>
+<h3>Private key</h3><p class="warn">Secret! Only put this in the Supabase secret VAPID_PRIVATE_KEY. Never in GitHub.</p><textarea id="priv" readonly></textarea>
+</div>
+<script>
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+document.getElementById('go').onclick = async () => {
+  const kp = await crypto.subtle.generateKey({name:'ECDH', namedCurve:'P-256'}, true, ['deriveBits']);
+  const pub = await crypto.subtle.exportKey('raw', kp.publicKey);           // 65 bytes
+  const jwk = await crypto.subtle.exportKey('jwk', kp.privateKey);           // d = 32 bytes
+  document.getElementById('pub').value = b64u(pub);
+  document.getElementById('priv').value = jwk.d;
+  document.getElementById('out').hidden = false;
+};
+</script></body></html>

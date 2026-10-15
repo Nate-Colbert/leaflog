@@ -1,51 +1,32 @@
-# Leaflog: setup guide
+# 🪴 Leaflog v2
 
-Your plant tracker: a static web app hosted free on GitHub Pages, with a free Supabase project holding the data and photos. Takes about 15 minutes, once.
+Indoor plant tracker for your Android phone and iPad. Hosted free on GitHub Pages, data in your own Supabase.
 
-## 1. Create the Supabase project (5 min)
+## What's new in v2
+Shared water days with forward-only snapping (plants dry out a bit rather than get overwatered), feeding aligned to watering day, moss-pole drip schedule with ml tracking, grow-light and extra plant details, propagation, problem tracker, weather correlation, seasonal view with winter-slowdown suggestion, growth timeline, morning push notification, and Claude plant ID / care advice.
 
-1. Sign up at **supabase.com** and click **New project**. Pick any name, set a database password (save it somewhere), and choose the **Sydney** region.
-2. Wait a minute for it to finish setting up.
-3. Open **SQL Editor** → **New query**, paste in everything from `schema.sql`, and click **Run**. This creates your tables, the private photo storage and the security rules.
+## 1. Update the app (required)
+1. Replace all files in your GitHub repo with the ones in this zip. **Keep your own `config.js` values** (URL and key) and copy them into the new `config.js`.
+2. Supabase > SQL Editor > paste **all of `schema.sql`** > Run. It is safe to re-run and keeps your data.
+3. In the app: Settings > choose your **water days** (e.g. Mon + Thu), hemisphere, and your location (for weather).
 
-## 2. Create your login (2 min)
+## 2. Claude plant ID and care advice (optional)
+1. console.anthropic.com > create an API key, add a little credit, and **set a monthly spend limit**. (This is separate from your Claude subscription; a photo ID costs a few cents.)
+2. Supabase > Edge Functions > **Deploy a new function** > name `plant-advisor` > paste `edge-functions/plant-advisor/index.ts`. Turn **Verify JWT off** (the function checks your login itself) and deploy.
+3. Edge Functions > Secrets: add `ANTHROPIC_API_KEY`. Optional: `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`).
+4. In `config.js` set `AI_ENABLED: true`. Add or edit a plant, attach a photo, tap **Identify with Claude**.
 
-1. Go to **Authentication → Users → Add user → Create new user**.
-2. Enter your email and a password, and tick **Auto Confirm User**.
-3. Go to **Authentication → Sign In / Providers** (or *Settings*, depending on the dashboard version) and turn **off** "Allow new users to sign up". That way you're the only person who can ever log in.
+## 3. Morning push notification (optional, phone only)
+1. Open `vapid.html` in a browser, tap Generate. Keep the page open.
+2. Edge Functions > Secrets, add: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (from the page), `VAPID_SUBJECT` (`mailto:you@example.com`), and `CRON_SECRET` (any long random text).
+3. Deploy a function named `daily-summary` from `edge-functions/daily-summary/index.ts`, **Verify JWT off**.
+4. Database > Extensions: enable `pg_cron` and `pg_net`. Edit the two placeholders in `cron_setup.sql` and run it.
+5. In `config.js` set `PUSH_ENABLED: true` and `VAPID_PUBLIC_KEY: "..."`.
+6. On your **Android phone**: install the app (Chrome menu > Install app), open it, Settings > turn on notifications, pick the hour, tap **Send a test**. Don't enable it on the iPad; it just shows the summary in the app.
 
-## 3. Connect the app to Supabase (1 min)
+If you ever change `logic.js`, run `edge-functions/build.sh` and redeploy `daily-summary` so the notification uses the same schedule.
 
-1. In Supabase go to **Project Settings → API** (or **API Keys**).
-2. Copy the **Project URL** and the **anon / publishable key**.
-3. Open `config.js` and paste them in place of the two `PASTE_...` values.
-
-## 4. Put it on GitHub Pages (5 min)
-
-1. Create a new GitHub repository (e.g. `leaflog`). Public is fine; Pages on free accounts needs public repos.
-2. Click **Add file → Upload files** and drag in **all the files from the zip, unzipped** (`index.html`, `app.js`, `styles.css`, `config.js`, `sw.js`, `manifest.webmanifest` and the three `icon-*.png`). You don't need `schema.sql` or this README in the repo, but it does no harm.
-3. Go to **Settings → Pages**, set **Source** to *Deploy from a branch*, choose **main** and **/ (root)**, and Save.
-4. After a minute your app is live at `https://YOUR-USERNAME.github.io/leaflog/`.
-
-## 5. Install it on your devices
-
-- **Android (Chrome):** open the link, tap the menu (⋮) → **Install app**.
-- **iPad (Safari):** open the link, tap **Share → Add to Home Screen**.
-
-Sign in on each device once. Both devices read the same data, so a watering logged on your phone shows up on the iPad (pull the ↻ button or just reopen the app).
-
-## How it works
-
-- **Rooms:** create them in Settings (or the quick-add), then pick one for each plant. The home screen groups plants by room, with filter chips along the top.
-- **Watering:** tap 💧 on any plant. A toast lets you tap **Dry / Damp / Wet** for the soil, or **Undo**. Use **Past water** inside a plant to back-fill earlier dates.
-- **Learning schedule:** each plant starts on your "water every N days" guess. After 3 logged waterings it learns the plant's real rhythm from the recent gaps, weighting newer ones more so seasonal changes carry through. Waterings where the soil was still damp or wet nudge the interval longer. Long gaps (holidays) are ignored.
-- **Events:** fertilise, repot, new leaf, prune, pest/issue and free notes, each with a date, note and optional photo.
-- **Photos:** resized on your device before uploading and stored privately in your Supabase project.
-- **Insights:** activity by month, new leaves, soil when watered, thirst by room, and watering rhythm per plant.
-- **Your data:** Settings → export CSV for history or plants to analyse in Excel/Sheets. You can also browse the tables directly in Supabase's **Table Editor**.
-
-## Good to know
-
-- Supabase's free tier pauses a project after about a week of **no activity at all**. Using the app weekly keeps it awake; if it ever pauses, press Restore in the Supabase dashboard.
-- Back up occasionally with the CSV export.
-- After you update files on GitHub, the app picks up changes the next time you open it (close and reopen if it looks stale).
+## Notes
+- Snapping only ever delays watering to the next water day (within each plant's flexibility: strict 0 / normal 2 / hardy 4 days). This slightly lengthens observed gaps, so log soil dampness when you water to keep the learning honest.
+- Weather uses free Open-Meteo; no key needed.
+- Push could not be tested end to end in my environment. If the test button errors, check the function's Logs tab and tell me the message.
