@@ -2,8 +2,8 @@
 // The publishable / anon key is safe to put in a public GitHub repo: your data is
 // protected by the security rules in schema.sql and by your login.
 window.PLANT_CONFIG = {
-  SUPABASE_URL: "PASTE_YOUR_PROJECT_URL_HERE",
-  SUPABASE_ANON_KEY: "PASTE_YOUR_ANON_OR_PUBLISHABLE_KEY_HERE",
+  SUPABASE_URL: "https://rmpomshdgxkwsyytmbek.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_apeD3TriBD1SDO9YxKQAmg_8r-7fJ6d",
 
   // Turn these on ONLY after you've set up the matching Edge Function (see README):
   AI_ENABLED: false,            // Claude plant ID, care guides and "Ask Claude"  (function: plant-advisor)
