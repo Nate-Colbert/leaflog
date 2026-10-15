@@ -147,6 +147,22 @@ create policy "own issues"   on public.issues             for all using (user_id
 create policy "own settings" on public.user_settings      for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy "own push"     on public.push_subscriptions for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
+-- ---------- Sensor readings (Govee etc.) for the iPad hub ----------
+create table if not exists public.sensor_readings (
+  id          bigint generated always as identity primary key,
+  user_id     uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  room_id     uuid references public.rooms(id) on delete set null,
+  plant_id    uuid references public.plants(id) on delete set null,
+  kind        text not null check (kind in ('temp_c','humidity','soil_moisture')),
+  value       numeric not null,
+  device      text,
+  recorded_at timestamptz not null default now()
+);
+create index if not exists sensor_readings_user_time on public.sensor_readings (user_id, recorded_at desc);
+alter table public.sensor_readings enable row level security;
+drop policy if exists "own sensors" on public.sensor_readings;
+create policy "own sensors" on public.sensor_readings for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
 -- ---------- Private photo storage ----------
 -- Photos are saved under <your user id>/<random>.jpg and only you can read them.
 

@@ -6,6 +6,7 @@ import { $, esc } from './util.js';
 import { viewHome, viewPlan } from './home.js';
 import * as D from './detail.js';
 import * as ST from './settings.js';
+import { viewHub, hubOn, enterHub, startHub } from './hub.js';
 import { viewInsights, drawCharts, destroyCharts, loadHeat } from './insights.js';
 
 /* ---------------------------------------------------------------- render */
@@ -17,6 +18,8 @@ function render() {
   const y = window.scrollY;
   recompute();
   destroyCharts();
+  document.body.classList.toggle('hubmode', S.tab === 'hub');
+  if (S.tab === 'hub') { $('#app').innerHTML = viewHub(); hooks.renderDetail(); return; }
   const view = S.tab === 'home' ? viewHome() : S.tab === 'plan' ? viewPlan() : S.tab === 'insights' ? viewInsights() : ST.viewSettings();
   const nav = TABS.map(([t, i, l]) => `<button class="${S.tab === t ? 'on' : ''}" data-act="tab" data-tab="${t}"><span>${i}</span>${l}</button>`).join('');
   $('#app').innerHTML = `<div class="wrap">${view}</div><nav class="nav"><div class="inner">${nav}</div></nav>` +
@@ -62,8 +65,10 @@ function resetState() {
 async function start() {
   $('#app').innerHTML = '<div class="boot">🪴</div>';
   try { await loadAll(); } catch (e) { renderDbError(e); return; }
+  if (hubOn()) { S.tab = 'hub'; startHub(); }
   render();
   loadHeat().then(render).catch(() => {});
+  if (S.tab === 'hub') enterHub();
 }
 
 function renderDbError(e) {

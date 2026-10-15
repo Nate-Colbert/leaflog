@@ -52,6 +52,9 @@ export function viewSettings() {
     <div class="panel-card"><h2>Your data</h2><p>Everything lives in your own Supabase project. Export it to analyse in Excel or Google Sheets.</p>
       <div class="row wrap3"><button class="btn" data-act="export-events">History (CSV)</button><button class="btn" data-act="export-plants">Plants (CSV)</button><button class="btn" data-act="export-issues">Problems (CSV)</button></div></div>
 
+    <div class="panel-card"><h2>📺 iPad hub</h2>
+      <p class="muted small">A big landscape dashboard for a spare iPad: today's jobs, rooms, weather, problems and room temperature/humidity once sensors are linked. Open it on the iPad, then it stays in hub mode on that device.</p>
+      <button class="btn primary block" data-act="hub-enter">Open hub mode</button></div>
     <div class="panel-card"><h2>Install as an app</h2>
       <p class="install-tip"><b>Android (Chrome):</b> menu ⋮ → Install app.<br><b>iPad (Safari):</b> Share → Add to Home Screen.</p></div>
     <button class="btn ghost block" data-act="signout">Sign out</button>`;

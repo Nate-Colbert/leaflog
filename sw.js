@@ -1,7 +1,7 @@
 /* Leaflog service worker: opens the app instantly, works offline-ish, and shows push notifications.
    Data always comes live from Supabase, so this only caches the app's own files and CDN libraries. */
-const CACHE = 'leaflog-v2';
-const SHELL = ['./', './index.html', './styles.css', './app.js', './logic.js', './util.js', './state.js', './home.js', './detail.js', './settings.js', './insights.js',
+const CACHE = 'leaflog-v3';
+const SHELL = ['./', './index.html', './styles.css', './app.js', './logic.js', './util.js', './state.js', './home.js', './detail.js', './settings.js', './insights.js', './hub.js',
   './config.js', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

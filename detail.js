@@ -167,7 +167,7 @@ export function openPlantForm(id, preset = {}) {
   const img = id ? plantImg(p) : '';
   const others = S.plants.filter((q) => q.id !== id);
   modal(`<form id="pf" class="form" data-id="${id || ''}"><h2>${id ? 'Edit plant' : 'New plant'}</h2>
-    <label>Photo<span class="photo-pick">${img ? `<img src="${esc(img)}" alt="">` : '<span class="ph-hint">📷 Take or choose a photo</span>'}<input type="file" accept="image/*"></span></label>
+    <div class="photo-field"><span class="lbl">Photo</span>${img ? `<img class="photo-prev" src="${esc(img)}" alt="">` : ''}${photoButtons()}</div>
     ${cfg.AI_ENABLED ? `<button type="button" class="btn ai" data-act="ai-identify">✨ Identify plant &amp; suggest care</button><div id="ai-out"></div>` : ''}
     ${field('Name', `<input name="name" required value="${val(p.name)}" placeholder="e.g. Monty the monstera">`)}
     ${field('Type / species (optional)', `<input name="species" value="${val(p.species)}" placeholder="e.g. Monstera deliciosa">`)}
@@ -225,7 +225,7 @@ async function savePlant(f) {
       pot_size_cm: num(fd.get('pot_size')), soil_mix: str('soil_mix'), purchased_on: fd.get('purchased_on') || null, purchased_from: str('purchased_from'), price: num(fd.get('price')),
       parent_id: fd.get('parent') || null, prop_stage: fd.get('prop_stage') || null, prop_method: fd.get('prop_method') || null, propagated_on: fd.get('propagated_on') || null,
     };
-    const file = $('input[type=file]', f).files[0];
+    const file = pickedFile(f);
     const old = id ? S.plants.find((x) => x.id === id).photo_path : null;
     if (file) row.photo_path = await uploadPhoto(file);
     if (id) {
@@ -277,7 +277,7 @@ export function openEventModal(plantId, type = 'water') {
       ${Object.entries(SOIL).map(([k, v]) => `<label><input type="radio" name="soil" value="${k}"><span>${v}</span></label>`).join('')}</span></label></div>
     <div id="mlbox" ${type === 'water' || type === 'pole' ? '' : 'hidden'}><label>Amount (ml, optional)<input type="number" name="ml" min="0" inputmode="numeric" value="${type === 'pole' && pole && pole.ml ? pole.ml : ''}" placeholder="e.g. 250"></label></div>
     <label>Note (optional)<textarea name="note" placeholder="e.g. 2 new leaves, brown tips, moved to brighter spot"></textarea></label>
-    <label>Photo (optional)<span class="photo-pick"><span class="ph-hint">📷 Take or choose a photo</span><input type="file" accept="image/*"></span></label>
+    <div class="photo-field"><span class="lbl">Photo (optional)</span>${photoButtons()}</div>
     <div class="row"><button type="button" class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary">Save</button></div></form>`);
 }
 
@@ -285,7 +285,7 @@ async function saveEvent(f) {
   const fd = new FormData(f), type = fd.get('type');
   const btn = $('button.primary', f); btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    const file = $('input[type=file]', f).files[0];
+    const file = pickedFile(f);
     const photo_path = file ? await uploadPhoto(file) : null;
     await insertEvent({
       plant_id: f.dataset.plant, type, occurred_on: fd.get('date') || todayStr(),
@@ -344,14 +344,14 @@ function openPropagate(plantId) {
     ${field('Name of the cutting', `<input name="name" required value="${esc(p.name)} cutting">`)}
     <div class="row">${field('Method', sel('method', PROP_METHODS, 'water'))}${field('Date', `<input type="date" name="date" value="${todayStr()}" max="${todayStr()}" required>`)}</div>
     ${field('Note (optional)', `<textarea name="note" placeholder="e.g. Node with aerial root, 2 leaves"></textarea>`)}
-    <label>Photo (optional)<span class="photo-pick"><span class="ph-hint">📷 Take or choose a photo</span><input type="file" accept="image/*"></span></label>
+    <div class="photo-field"><span class="lbl">Photo (optional)</span>${photoButtons()}</div>
     <div class="row"><button type="button" class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary">Create cutting</button></div></form>`);
 }
 async function savePropagate(f) {
   const fd = new FormData(f), pid = f.dataset.plant, p = S.plants.find((x) => x.id === pid);
   const btn = $('button.primary', f); btn.disabled = true; btn.textContent = 'Saving…';
   try {
-    const file = $('input[type=file]', f).files[0];
+    const file = pickedFile(f);
     const photo_path = file ? await uploadPhoto(file) : null;
     const date = fd.get('date');
     const { data, error } = await sb.from('plants').insert({
@@ -389,7 +389,7 @@ function renderAi(r) {
 }
 
 async function aiBlob(f) {
-  const file = $('input[type=file]', f).files[0];
+  const file = pickedFile(f);
   if (file) return resizeImage(file, 1024, 0.8);
   const p = f.dataset.id && S.plants.find((x) => x.id === f.dataset.id);
   const u = p && plantImg(p);
@@ -528,3 +528,28 @@ export function handleInput(e) {
   const t = e.target;
   if (t.classList && t.classList.contains('cmp-range')) { const box = $('#sheet .cmp'); if (box) box.style.setProperty('--pos', t.value + '%'); }
 }
+
+/* ---- photo picking: one button opens the camera directly, the other opens the gallery ---- */
+function photoButtons() {
+  return `<div class="photo-btns">
+    <label class="btn ghost">📷 Take photo<input type="file" name="photo_cam" accept="image/*" capture="environment" hidden></label>
+    <label class="btn ghost">🖼️ Choose photo<input type="file" name="photo_gal" accept="image/*" hidden></label>
+    <span class="photo-name muted small"></span></div>`;
+}
+function pickedFile(f) {
+  const ins = f.querySelectorAll('input[type=file]');
+  for (let i = 0; i < ins.length; i++) if (ins[i].files && ins[i].files[0]) return ins[i].files[0];
+  return null;
+}
+document.addEventListener('change', (e) => {
+  const t = e.target;
+  if (!t || t.type !== 'file' || !t.closest('.photo-field')) return;
+  const box = t.closest('.photo-field'), file = t.files[0];
+  box.querySelectorAll('input[type=file]').forEach((x) => { if (x !== t) x.value = ''; }); // only one source at a time
+  const nm = box.querySelector('.photo-name'); if (nm) nm.textContent = file ? '✓ ' + file.name : '';
+  if (file && file.type.indexOf('image') === 0) {
+    let img = box.querySelector('.photo-prev');
+    if (!img) { img = document.createElement('img'); img.className = 'photo-prev'; img.alt = ''; box.insertBefore(img, box.querySelector('.photo-btns')); }
+    img.src = URL.createObjectURL(file);
+  }
+});

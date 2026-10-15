@@ -26,7 +26,18 @@ Shared water days with forward-only snapping (plants dry out a bit rather than g
 
 If you ever change `logic.js`, run `edge-functions/build.sh` and redeploy `daily-summary` so the notification uses the same schedule.
 
+## 4. iPad hub (landscape dashboard)
+On the iPad: Settings > **Open hub mode**. It shows a big clock, outside weather, today's jobs (tap **Done**, or **Do all**), this week's water days, rooms, open problems, recent activity and a photo strip of every plant. It refreshes itself every ~5 minutes, dims 10pm to 6am, and tries to keep the screen awake. Tap a plant to open it; ✕ top right leaves hub mode. It remembers hub mode on that device, so add it to the Home Screen and open it as a kiosk.
+Tip: iPad Settings > Display & Brightness > Auto-Lock > Never, and keep it plugged in. Needs iPadOS 14 or newer (Safari 12-era iPads can't run the Supabase library).
+
+### Sensors (Govee etc.)
+The hub already shows room temperature/humidity (and per-plant soil moisture in the photo strip) from the `sensor_readings` table; until data arrives each room says "no sensor yet".
+1. Re-run `schema.sql` (adds the table).
+2. Deploy `edge-functions/sensor-ingest/index.ts` as `sensor-ingest` (Verify JWT off) with secrets `INGEST_SECRET` and `INGEST_USER_ID` (your user id from Authentication > Users).
+3. Anything that can POST JSON can send readings (format is in the file's header comment). The next step for Govee is a small poller using your Govee developer API key; tell me which models you have (H5075, H5179, etc.) and I'll write it.
+
 ## Notes
+- Photos: the plant form now has separate **Take photo** (opens the camera) and **Choose photo** (gallery) buttons.
 - Snapping only ever delays watering to the next water day (within each plant's flexibility: strict 0 / normal 2 / hardy 4 days). This slightly lengthens observed gaps, so log soil dampness when you water to keep the learning honest.
 - Weather uses free Open-Meteo; no key needed.
 - Push could not be tested end to end in my environment. If the test button errors, check the function's Logs tab and tell me the message.
