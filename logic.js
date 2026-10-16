@@ -225,6 +225,16 @@ export function buildPlan(stats, settings, today, days = 14) {
 export const dueNow = (tasks, today) => tasks.filter((x) => !x.projected && x.day <= dnum(today));
 
 /** Text for the morning notification */
+/** Acclimatisation timer for a newly bought plant. null when none is set. */
+export function acclimStats(p, today) {
+  if (!p || !p.acclim_weeks) return null;
+  const t = dnum(today), start = dnum(p.acclim_started_on || p.purchased_on || today), total = p.acclim_weeks * 7, end = start + total;
+  const elapsed = Math.max(0, t - start), done = !!p.acclim_done_on;
+  return { start, end, total, elapsed, left: end - t, week: Math.min(p.acclim_weeks, Math.floor(elapsed / 7) + 1), pct: Math.min(100, Math.round((elapsed / total) * 100)),
+    done, ready: !done && t >= end, goal: p.acclim_for || 'both' };
+}
+export const ACCLIM_GOALS = { repot: 'repot it', pole: 'put it on a pole', both: 'repot it or put it on a pole' };
+
 export function summarizeDue(stats, settings, today) {
   const tasks = dueNow(buildPlan(stats, settings, today, 0), today);
   const name = (id) => (stats.find((s) => s.p.id === id) || { p: { name: '?' } }).p.name;
@@ -235,7 +245,9 @@ export function summarizeDue(stats, settings, today) {
   if (water.length) parts.push(`Water: ${water.map((x) => x.name + (x.feed ? ' (+feed)' : '')).join(', ')}`);
   if (feed.length) parts.push(`Feed: ${feed.join(', ')}`);
   if (pole.length) parts.push(`Pole drip: ${pole.join(', ')}`);
-  const count = water.length + feed.length + pole.length;
+  const acc = stats.map((x) => ({ p: x.p, a: acclimStats(x.p, today) })).filter((x) => x.a && x.a.ready);
+  if (acc.length) parts.push(`Acclimated: ${acc.map((x) => x.p.name).join(', ')}`);
+  const count = water.length + feed.length + pole.length + acc.length;
   return { count, water, feed, pole, title: count ? `🪴 ${count} plant job${count === 1 ? '' : 's'} today` : '🪴 Nothing due today', body: parts.join('\n') || 'All caught up.' };
 }
 

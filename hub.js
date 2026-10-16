@@ -151,6 +151,16 @@ function problemsHtml() {
   return '<div class="hub-card"><h3>Problems <small>' + open.length + ' open</small></h3>' + rows + '</div>';
 }
 
+function acclimHtml() {
+  const rows = S.plants.map(function (p) { return { p: p, a: L.acclimStats(p, S.today) }; })
+    .filter(function (x) { return x.a && !x.a.done; }).sort(function (x, y) { return x.a.left - y.a.left; }).slice(0, 4)
+    .map(function (x) {
+      return '<div class="hub-li" data-act="open" data-id="' + x.p.id + '"><b>' + (x.a.ready ? '✅ ' : '⏳ ') + esc(x.p.name) + '</b><span>' +
+        (x.a.ready ? 'Acclimated, ready to ' + L.ACCLIM_GOALS[x.a.goal] : plural(x.a.left, 'day') + ' to go (week ' + x.a.week + ' of ' + x.p.acclim_weeks + ')') + '</span></div>';
+    }).join('');
+  return rows ? '<div class="hub-card"><h3>Acclimatising</h3>' + rows + '</div>' : '';
+}
+
 function recentHtml() {
   const rows = S.events.slice(0, 5).map(function (e) {
     const p = S.plants.find(function (x) { return x.id === e.plant_id; }); const ty = TYPES[e.type] || TYPES.note;
@@ -172,7 +182,7 @@ function stripHtml() {
 /* ------------------------------------------------------------ view */
 export function viewHub() {
   return '<div class="hub' + (isNight() ? ' night' : '') + '" id="hub">' +
-    '<div class="hub-col a"><div class="hub-card hub-clock" id="hub-clock">' + clockHtml() + '</div>' + weatherHtml() + problemsHtml() + '</div>' +
+    '<div class="hub-col a"><div class="hub-card hub-clock" id="hub-clock">' + clockHtml() + '</div>' + weatherHtml() + acclimHtml() + problemsHtml() + '</div>' +
     '<div class="hub-col b">' + tasksHtml() + weekHtml() + '</div>' +
     '<div class="hub-col c">' + roomsHtml() + recentHtml() + '</div>' +
     stripHtml() +

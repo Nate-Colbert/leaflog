@@ -27,6 +27,20 @@ export function dueEntries() {
 }
 const flagsOf = (e) => ({ plantId: e.plantId, water: !!e.water, feed: !!(e.water && e.water.feed) || !!e.feed, pole: !!e.pole });
 
+/* ----------------------------------------------------- thirst dot (green -> yellow -> red) */
+
+/** colour + tooltip for the little droplet on a plant card: green when freshly watered, easing to
+    yellow as the water day approaches, red once it has been missed. */
+export function thirst(w) {
+  if (w.last == null) return { color: L.dnum(S.today) > w.due ? 'hsl(0 72% 46%)' : '#aab4ae', tip: 'Not watered yet' };
+  const t = L.dnum(S.today), total = Math.max(1, w.due - w.last), elapsed = t - w.last;
+  let hue;
+  if (t < w.due) hue = 135 - 90 * Math.pow(Math.max(0, elapsed) / total, 1.25);   // 135 green -> 45 yellow
+  else hue = 45 - 45 * Math.min(1, (t - w.due) / 1.5);                                // 45 yellow -> 0 red
+  const tip = w.sinceLast === 0 ? 'Watered today' : `Watered ${w.sinceLast}d ago`;
+  return { color: `hsl(${Math.round(hue)} 72% 46%)`, tip };
+}
+
 /* ------------------------------------------------------------- the actions */
 
 const busy = new Set();
@@ -81,6 +95,21 @@ Object.assign(ACTS, {
     hooks.render();
     showToast(`Saved: soil was ${SOIL[t.dataset.v].toLowerCase()} ✓`, 1800);
   },
+  'acclim-done': async (t) => {
+    const p = S.plants.find((x) => x.id === t.dataset.id); if (!p) return;
+    const { error } = await sb.from('plants').update({ acclim_done_on: S.today }).eq('id', p.id);
+    if (error) throw error;
+    p.acclim_done_on = S.today;
+    await insertEvents([{ plant_id: p.id, type: 'note', occurred_on: S.today, note: 'Finished acclimatising' }]);
+    hooks.render(); showToast(`✅ ${esc(p.name)} acclimatised`, 2200);
+  },
+  'acclim-snooze': async (t) => {
+    const p = S.plants.find((x) => x.id === t.dataset.id); if (!p) return;
+    const a = L.acclimStats(p, S.today), started = L.fromDnum(L.dnum(S.today) - a.total + 7); // ends a week from today
+    const { error } = await sb.from('plants').update({ acclim_started_on: started }).eq('id', p.id);
+    if (error) throw error;
+    p.acclim_started_on = started; hooks.render(); showToast('Reminder pushed back a week', 1800);
+  },
   'go-settings': () => { S.tab = 'settings'; hooks.render(); window.scrollTo(0, 0); },
 });
 
@@ -99,10 +128,12 @@ function card({ p, w, f, pole }, due) {
   if (pole && pole.days <= 0) badges.push('🎋');
   if (S.issues.some((i) => i.plant_id === p.id && !i.resolved_on)) badges.push('⚠️');
   if (p.prop_stage && p.prop_stage !== 'established') badges.push('🌱');
+  const ac = L.acclimStats(p, S.today); if (ac && !ac.done) badges.push(ac.ready ? '✅' : '⏳');
+  const th = thirst(w);
   return `<article class="card" data-act="open" data-id="${p.id}">
     <div class="ph">${img ? `<img src="${esc(img)}" alt="" loading="lazy">` : '🪴'}<span class="pill ${st.cls}">${esc(st.text)}</span>
       ${badges.length ? `<span class="badges">${badges.join('')}</span>` : ''}</div>
-    <div class="cb"><h3>${esc(p.name)}</h3><p>${esc(p.species || '')}</p>${waterBtn(p, due)}</div></article>`;
+    <div class="cb"><h3><i class="thirst" style="--c:${th.color}" title="${esc(th.tip)}" aria-label="${esc(th.tip)}"></i>${esc(p.name)}</h3><p>${esc(p.species || '')}</p>${waterBtn(p, due)}</div></article>`;
 }
 
 export function viewHome() {
@@ -122,6 +153,11 @@ export function viewHome() {
   }
 
   if (S.heat) html += `<div class="notice warm">${esc(S.heat)}</div>`;
+  S.st.forEach((x) => {
+    const a = L.acclimStats(x.p, S.today);
+    if (a && a.ready) html += `<div class="notice acclim">✅ <b data-act="open" data-id="${x.p.id}" style="cursor:pointer">${esc(x.p.name)}</b> has finished acclimatising. Time to ${L.ACCLIM_GOALS[a.goal]}.
+      <span class="acl-btns"><button class="btn mini" data-act="acclim-done" data-id="${x.p.id}">Done</button><button class="btn mini ghost" data-act="acclim-snooze" data-id="${x.p.id}">+1 week</button></span></div>`;
+  });
 
   if (entries.length) {
     html += `<section class="today-strip"><div class="ts-h"><h2>Today</h2>${entries.length > 1 ? `<button class="btn mini light" data-act="do-all">Do all (${entries.length})</button>` : ''}</div><div class="today-row">${entries.map((e) => {

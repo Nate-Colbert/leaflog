@@ -47,6 +47,7 @@ export function renderDetail() {
   if (!p) { hideSheet(); return; }
   const x = S.stMap[p.id] || { w: L.waterStats(p, S.events, S.settings, S.today, tz()), f: null, pole: null };
   const { w, f, pole } = x;
+  const acc = L.acclimStats(p, S.today);
   const st = waterStatus(w), rm = room(p), img = plantImg(p);
   const evs = S.events.filter((e) => e.plant_id === p.id);
   const count = (t) => evs.filter((e) => e.type === t).length;
@@ -93,6 +94,11 @@ export function renderDetail() {
 
       <div class="status ${st.cls}"><div><b>${esc(st.long)}</b><small>${esc(learnTxt)}</small>${why ? `<small>${esc(why)}</small>` : ''}</div>
         <button class="btn water" data-act="do-water" data-id="${p.id}">${f && f.days <= 0 && w.days <= 0 && f.due === w.due ? '💧🧪' : '💧'} Water</button></div>
+      ${acc && !acc.done ? (acc.ready
+        ? `<div class="status sub acl ready"><div><b>✅ Acclimated: time to ${L.ACCLIM_GOALS[acc.goal]}</b><small>Finished settling in ${fmtDay(acc.end)}.</small></div>
+          <button class="btn" data-act="acclim-done" data-id="${p.id}">Done</button></div>`
+        : `<div class="status sub acl"><div><b>⏳ Acclimatising: week ${acc.week} of ${p.acclim_weeks}</b><small>Ready ${fmtDay(acc.end)} (${plural(acc.left, 'day')} to go) to ${L.ACCLIM_GOALS[acc.goal]}.</small>
+          <div class="bar"><i style="width:${acc.pct}%"></i></div></div><button class="btn ghost" data-act="acclim-done" data-id="${p.id}">Done early</button></div>`) : ''}
       ${f ? `<div class="status sub"><div><b>🧪 Feed ${f.days <= 0 ? 'due now' : 'due ' + fmtDay(f.due)}</b>
         <small>Every ${plural(p.fert_every_weeks, 'week')}${f.aligned ? ', matched to a watering day' : ''}${f.paused ? ' · paused for the cool months' : ''}.</small></div>
         ${f.days <= 0 ? `<button class="btn" data-act="do-feed" data-id="${p.id}">Fed it</button>` : ''}</div>` : ''}
@@ -161,8 +167,12 @@ const field = (label, input) => `<label>${label}${input}</label>`;
 const val = (v) => (v == null ? '' : esc(v));
 const sel = (name, map, cur, blank) => `<select name="${name}">${blank != null ? `<option value="">${esc(blank)}</option>` : ''}${Object.entries(map).map(([k, v]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${esc(typeof v === 'string' ? v : v.label)}</option>`).join('')}</select>`;
 
+const LR = 'leaflog-lastroom';
+function lastRoom() { try { const v = localStorage.getItem(LR); return v && S.rooms.some((r) => r.id === v) ? v : ''; } catch (e) { return ''; } }
+function rememberRoom(id) { try { if (id) localStorage.setItem(LR, id); } catch (e) { /* ignore */ } }
+
 export function openPlantForm(id, preset = {}) {
-  const base = { name: '', species: '', room_id: S.filter !== 'all' && S.filter !== 'none' ? S.filter : '', interval_days: 7, notes: '', flex: 'normal', fert_winter_pause: true, ...preset };
+  const base = { name: '', species: '', room_id: S.filter !== 'all' && S.filter !== 'none' ? S.filter : lastRoom(), interval_days: 7, notes: '', flex: 'normal', fert_winter_pause: true, ...preset };
   const p = id ? S.plants.find((x) => x.id === id) : base;
   const img = id ? plantImg(p) : '';
   const others = S.plants.filter((q) => q.id !== id);
@@ -202,6 +212,12 @@ export function openPlantForm(id, preset = {}) {
       ${field('Cutting of…', `<select name="parent"><option value="">Not a cutting</option>${others.map((q) => `<option value="${q.id}" ${q.id === p.parent_id ? 'selected' : ''}>${esc(q.name)}</option>`).join('')}</select>`)}
       <div class="row">${field('Stage', sel('prop_stage', PROP_STAGES, p.prop_stage || '', 'None'))}${field('Method', sel('prop_method', PROP_METHODS, p.prop_method || '', 'Not set'))}</div>
       ${field('Date started', `<input type="date" name="propagated_on" value="${val(p.propagated_on)}">`)}`)}
+    ${sec('⏳ Acclimatisation', !!p.acclim_weeks, `
+      <p class="muted small">For a newly bought plant: you'll get an alert when it has settled in and is ready to repot or go on a pole.</p>
+      <div class="row">${field('Acclimatise for (weeks)', `<input type="number" name="acclim_weeks" min="1" max="52" inputmode="numeric" value="${val(p.acclim_weeks)}" placeholder="e.g. 4">`)}
+        ${field('Started', `<input type="date" name="acclim_started" value="${val(p.acclim_started_on)}">`)}</div>
+      ${field('Then I want to…', sel('acclim_for', { both: 'Repot or put on a pole', repot: 'Repot it', pole: 'Put it on a pole' }, p.acclim_for || 'both'))}
+      <p class="muted small">Leave Started blank to count from the date bought (or today).</p>`)}
     ${field('Notes (optional)', `<textarea name="notes" placeholder="Quirks, care tips">${esc(p.notes || '')}</textarea>`)}
     <div class="row"><button type="button" class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary">Save</button></div>
     ${id ? '<button type="button" class="link-danger" data-act="delete-plant">Delete this plant…</button>' : ''}</form>`);
@@ -213,6 +229,7 @@ async function savePlant(f) {
   try {
     let room_id = fd.get('room') || null;
     if (room_id === '__new') { const n = (fd.get('newroom') || '').trim(); room_id = n ? (await addRoom(n)).id : null; }
+    if (!id) rememberRoom(room_id);
     const on = (k) => fd.get(k) === 'on';
     const str = (k) => (fd.get(k) || '').toString().trim() || null;
     const row = {
@@ -223,8 +240,12 @@ async function savePlant(f) {
       light_level: fd.get('light_level') || null, grow_light: on('grow_light'), light_model: str('light_model'), light_watts: num(fd.get('light_watts')),
       light_hours: num(fd.get('light_hours')), light_distance_cm: num(fd.get('light_distance')), light_notes: str('light_notes'),
       pot_size_cm: num(fd.get('pot_size')), soil_mix: str('soil_mix'), purchased_on: fd.get('purchased_on') || null, purchased_from: str('purchased_from'), price: num(fd.get('price')),
+      acclim_weeks: num(fd.get('acclim_weeks')), acclim_for: fd.get('acclim_for') || 'both',
       parent_id: fd.get('parent') || null, prop_stage: fd.get('prop_stage') || null, prop_method: fd.get('prop_method') || null, propagated_on: fd.get('propagated_on') || null,
     };
+    const prev = id ? S.plants.find((x) => x.id === id) : null;
+    row.acclim_started_on = row.acclim_weeks ? (fd.get('acclim_started') || row.purchased_on || todayStr()) : null;
+    row.acclim_done_on = row.acclim_weeks && prev && prev.acclim_done_on && !(row.acclim_weeks > (prev.acclim_weeks || 0)) ? prev.acclim_done_on : null;
     const file = pickedFile(f);
     const old = id ? S.plants.find((x) => x.id === id).photo_path : null;
     if (file) row.photo_path = await uploadPhoto(file);

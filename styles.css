@@ -436,3 +436,13 @@ body.hubmode { overflow: hidden; }
 .spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; vertical-align: -2px; animation: aispin .7s linear infinite; }
 @keyframes aispin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ai-orb span, .ai-skel i, .spin { animation-duration: 3s; } .ai-in { animation: none; } }
+
+/* ---------- thirst droplet + acclimatisation ---------- */
+.thirst { display: inline-block; width: 11px; height: 11px; margin-right: 7px; vertical-align: 1px; border-radius: 0 50% 50% 50%; transform: rotate(-45deg);
+  background: var(--c, #aab4ae); box-shadow: 0 0 0 2px rgba(255,255,255,.55); transition: background .6s; flex: none; }
+.notice.acclim { background: var(--ok-soft); display: flex; align-items: center; flex-wrap: wrap; }
+.notice.acclim .acl-btns { margin-left: auto; display: flex; }
+.notice.acclim .acl-btns .btn { margin-left: 6px; }
+.status.acl .bar { height: 6px; border-radius: 4px; background: var(--border); margin-top: 8px; overflow: hidden; }
+.status.acl .bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.status.acl.ready { background: var(--ok-soft); }
